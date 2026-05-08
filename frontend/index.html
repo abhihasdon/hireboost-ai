@@ -156,6 +156,32 @@
       font-size: 14px;
       line-height: 1.6;
     }
+
+    .status-box {
+      margin-top: 22px;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      color: #065f46;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .secondary-btn {
+      background: #6b7280;
+      margin-left: 10px;
+    }
+
+    .secondary-btn:hover {
+      background: #4b5563;
+    }
   </style>
 </head>
 
@@ -187,6 +213,7 @@
 
     <button onclick="analyze()">Analyze Resume</button>
     <button onclick="copyResult()" class="copy-btn">Copy Result</button>
+    <button onclick="clearAll()" class="secondary-btn">Clear All</button>
 
     <div id="validationStatus" class="status-box">
       Upload a resume and paste a job description to validate.
@@ -206,6 +233,13 @@
       const statusBox = document.getElementById("validationStatus");
       const job = document.getElementById("job").value;
       const resultBox = document.getElementById("result");
+      const fileType =
+        document.getElementById("resumeFile")
+          .files[0]
+          ?.name.split(".")
+
+    .pop()
+    .toUpperCase() || "Manual Text";
 
       if (!resume || !job) {
         resultBox.innerText = "Please paste both resume and job description.";
@@ -222,6 +256,20 @@
 
       resultBox.innerText = "Analyzing your resume...";
 
+      const startTime = Date.now();
+
+      const timer = setInterval(() => {
+        const seconds = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        document.getElementById("validationStatus").innerHTML = `
+          <strong>Validating inputs...</strong><br>
+          Resume detected: Checking...<br>
+          Job description detected: Checking...<br>
+          File type: ${fileType || "Unknown"}<br>
+          Status: Processing... (${seconds}s)
+        `;
+      }, 100);
+
       const res = await fetch("http://localhost:8080/analyze", {
         method: "POST",
         headers: {
@@ -233,19 +281,35 @@
         })
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        resultBox.innerText = "Something went wrong. Please check if backend is running.";
+        clearInterval(timer);
+
+        statusBox.className = "status-box error-box";
+        statusBox.innerHTML = `
+          <strong>Validation failed</strong><br>
+          Resume detected: No<br>
+          Job description detected: Not completed<br>
+          File type: ${fileType}<br>
+          Status: ${data.error || "Invalid input"}
+        `;
+
+        resultBox.innerText = data.error || "Invalid input.";
         return;
       }
 
-      const data = await res.json();
+      clearInterval(timer);
 
+      const totalSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      statusBox.className = "status-box";
       statusBox.innerHTML = `
         <strong>Validation complete</strong><br>
         Resume detected: Yes<br>
         Job description detected: Yes<br>
         File type: ${document.getElementById("resumeFile").files[0]?.name.split(".").pop().toUpperCase() || "Manual Text"}<br>
-        Status: Ready for analysis
+        Status: Analysis completed in ${totalSeconds}s
       `;
 
       const sections = data.result;
@@ -284,7 +348,7 @@ resultBox.innerHTML = `
       alert("Result copied!");
     }
 
-    async function uploadResumePDF() {
+async function uploadResumePDF() {
   const fileInput = document.getElementById("resumeFile");
   const resultBox = document.getElementById("result");
 
@@ -295,7 +359,7 @@ resultBox.innerHTML = `
   const formData = new FormData();
   formData.append("resume", fileInput.files[0]);
 
-  resultBox.innerText = "Reading PDF resume...";
+  resultBox.innerText = "Reading resume file...";
 
   const res = await fetch("http://localhost:8080/upload-resume", {
     method: "POST",
@@ -303,14 +367,47 @@ resultBox.innerHTML = `
   });
 
   if (!res.ok) {
-    resultBox.innerText = "Could not read PDF. Try pasting resume text manually.";
+    resultBox.innerText = "Could not read file. Try another resume.";
+
+    document.getElementById("validationStatus").className = "status-box error-box";
+    document.getElementById("validationStatus").innerHTML = `
+      <strong>Upload failed</strong><br>
+      Please upload a valid PDF, DOCX, or TXT resume file.
+    `;
+
     return;
   }
 
   const data = await res.json();
+
+  const file = fileInput.files[0];
+  const fileType = file.name.split(".").pop().toUpperCase();
+
   document.getElementById("resume").value = "[Resume file uploaded successfully]";
   document.getElementById("resume").dataset.extractedText = data.text;
-  resultBox.innerText = "PDF loaded successfully. Now paste job description and click Analyze.";
+
+  resultBox.innerText = "Resume loaded successfully. Now paste job description and click Analyze.";
+
+  document.getElementById("validationStatus").className = "status-box";
+
+  document.getElementById("validationStatus").innerHTML = `
+    <strong>Resume uploaded successfully</strong><br>
+    File name: ${file.name}<br>
+    File type: ${fileType}<br>
+    Status: Ready for job description
+  `;
+}
+
+function clearAll() {
+  document.getElementById("resume").value = "";
+  document.getElementById("resume").dataset.extractedText = "";
+  document.getElementById("job").value = "";
+  document.getElementById("resumeFile").value = "";
+  document.getElementById("result").innerText = "Your analysis will appear here.";
+
+  const statusBox = document.getElementById("validationStatus");
+  statusBox.className = "status-box";
+  statusBox.innerHTML = "Upload a resume and paste a job description to validate.";
 }
   </script>
 </body>
