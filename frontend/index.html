@@ -182,6 +182,151 @@
     .secondary-btn:hover {
       background: #4b5563;
     }
+
+    .result-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+    }
+
+    .result-card h3 {
+      margin-top: 0;
+      color: #111827;
+    }
+
+    .score-card {
+      border-left: 6px solid #2563eb;
+    }
+
+    .summary-card {
+      border-left: 6px solid #7c3aed;
+    }
+
+    .improvement-card {
+      border-left: 6px solid #f59e0b;
+    }
+
+    .question-card {
+      border-left: 6px solid #10b981;
+    }
+
+    .linkedin-card {
+      border-left: 6px solid #111827;
+    }
+
+    .score-box {
+      background: #eef2ff;
+      border-left: 6px solid #2563eb;
+      padding: 22px;
+      border-radius: 14px;
+      margin-bottom: 22px;
+    }
+
+    .score-box h3 {
+      margin: 0 0 10px 0;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .small-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-left: 6px solid #2563eb;
+      border-radius: 14px;
+      padding: 20px;
+      cursor: pointer;
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .small-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .small-card h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .summary-card {
+      border-left-color: #7c3aed;
+    }
+
+    .improvement-card {
+      border-left-color: #f97316;
+    }
+
+    .interview-card {
+      border-left-color: #10b981;
+    }
+
+    .linkedin-card {
+      border-left-color: #111827;
+    }
+
+    .detail-panel {
+      display: none;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 26px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+    }
+
+    .detail-panel.show {
+      display: block;
+    }
+
+    .detail-panel h3 {
+      margin-top: 0;
+    }
+
+    .detail-panel pre,
+    .detail-panel p {
+      white-space: pre-wrap;
+      font-family: system-ui, Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    .small-card.selected {
+      background: #f8fafc;
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.1);
+    }
+
+    .detail-panel {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 0 26px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+    }
+
+    .detail-panel.show {
+      max-height: 600px;
+      opacity: 1;
+      transform: translateY(0);
+      padding: 26px;
+    }
   </style>
 </head>
 
@@ -211,7 +356,7 @@
       </div>
     </div>
 
-    <button onclick="analyze()">Analyze Resume</button>
+    <button id="analyzeBtn" onclick="analyze()">Analyze Resume</button>
     <button onclick="copyResult()" class="copy-btn">Copy Result</button>
     <button onclick="clearAll()" class="secondary-btn">Clear All</button>
 
@@ -227,11 +372,13 @@
   </div>
 
   <script>
+    let resultSections = {};
     async function analyze() {
       const resumeBox = document.getElementById("resume");
       const resume = resumeBox.dataset.extractedText || resumeBox.value;
       const statusBox = document.getElementById("validationStatus");
       const job = document.getElementById("job").value;
+      const analyzeBtn = document.getElementById("analyzeBtn");
       const resultBox = document.getElementById("result");
       const fileType =
         document.getElementById("resumeFile")
@@ -245,6 +392,11 @@
         resultBox.innerText = "Please paste both resume and job description.";
         return;
       }
+
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerText = "Analyzing...";
+      analyzeBtn.style.opacity = "0.7";
+      analyzeBtn.style.cursor = "not-allowed";
 
       statusBox.innerHTML = `
         <strong>Validating inputs...</strong><br>
@@ -286,6 +438,11 @@
       if (!res.ok) {
         clearInterval(timer);
 
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerText = "Analyze Resume";
+        analyzeBtn.style.opacity = "1";
+        analyzeBtn.style.cursor = "pointer";
+
         statusBox.className = "status-box error-box";
         statusBox.innerHTML = `
           <strong>Validation failed</strong><br>
@@ -314,32 +471,70 @@
 
       const sections = data.result;
 
+
+resultSections = {
+  summary: sections.split("Resume Match Summary:")[1]?.split("Top Resume Improvements:")[0]?.trim() || "",
+  improvements: sections.split("Top Resume Improvements:")[1]?.split("Interview Questions:")[0]?.trim() || "",
+  questions: sections.split("Interview Questions:")[1]?.split("LinkedIn Recruiter Message:")[0]?.trim() || "",
+  linkedin: sections.split("LinkedIn Recruiter Message:")[1]?.trim() || ""
+};
+
 resultBox.innerHTML = `
-  <div>
+  <div class="score-box">
     <h3>ATS Score</h3>
     <p>${sections.match(/ATS Score:.*$/m)?.[0] || ""}</p>
   </div>
 
-  <div>
-    <h3>Resume Match Summary</h3>
-    <p>${sections.split("Resume Match Summary:")[1]?.split("Top Resume Improvements:")[0] || ""}</p>
+  <p style="color:#6b7280; margin-bottom:14px;">
+    Click a card below to view full details.
+  </p>
+
+  <div class="card-grid">
+    <div class="small-card summary-card" onclick="showDetail('Resume Match Summary', 'summary')">
+      <h3>🧠 Resume Match Summary</h3>
+    </div>
+
+    <div class="small-card improvement-card" onclick="showDetail('Improvements', 'improvements')">
+      <h3>⚡ Improvements</h3>
+    </div>
+
+    <div class="small-card interview-card" onclick="showDetail('Interview Questions', 'questions')">
+      <h3>🎯 Interview Questions</h3>
+    </div>
+
+    <div class="small-card linkedin-card" onclick="showDetail('LinkedIn Message', 'linkedin')">
+      <h3>💼 LinkedIn Message</h3>
+    </div>
   </div>
 
-  <div>
-    <h3>Improvements</h3>
-    <pre>${sections.split("Top Resume Improvements:")[1]?.split("Interview Questions:")[0] || ""}</pre>
-  </div>
-
-  <div>
-    <h3>Interview Questions</h3>
-    <pre>${sections.split("Interview Questions:")[1]?.split("LinkedIn Recruiter Message:")[0] || ""}</pre>
-  </div>
-
-  <div>
-    <h3>LinkedIn Message</h3>
-    <p>${sections.split("LinkedIn Recruiter Message:")[1] || ""}</p>
+  <div id="detailPanel" class="detail-panel">
+    <h3 id="detailTitle"></h3>
+    <pre id="detailContent"></pre>
   </div>
 `;
+
+  analyzeBtn.disabled = false;
+  analyzeBtn.innerText = "Analyze Resume";
+  analyzeBtn.style.opacity = "1";
+  analyzeBtn.style.cursor = "pointer";
+    }
+
+    function showDetail(title, key) {
+      document.querySelectorAll(".small-card").forEach(card => {
+        card.classList.remove("selected");
+      });
+
+      event.currentTarget.classList.add("selected");
+
+      const panel = document.getElementById("detailPanel");
+      const detailTitle = document.getElementById("detailTitle");
+      const detailContent = document.getElementById("detailContent");
+
+      detailTitle.innerText = title;
+      detailContent.innerText = resultSections[key] || "No details found.";
+
+      panel.classList.add("show");
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
     function copyResult() {
@@ -348,7 +543,7 @@ resultBox.innerHTML = `
       alert("Result copied!");
     }
 
-async function uploadResumePDF() {
+  async function uploadResumePDF() {
   const fileInput = document.getElementById("resumeFile");
   const resultBox = document.getElementById("result");
 
